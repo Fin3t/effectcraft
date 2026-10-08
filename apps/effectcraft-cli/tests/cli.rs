@@ -115,6 +115,16 @@ fn render_frame_writes_png() {
     assert!((v["time"].as_f64().unwrap() - 0.5).abs() < 0.02, "{v}");
 }
 
+/// `help`, `--help` and `-h` print the usage and exit 0 (T2: `help` was "unknown subcommand").
+#[test]
+fn help_prints_usage() {
+    for args in [&["help"][..], &["--help"], &["-h"], &["exec", "--help"]] {
+        let out = bin().args(args).output().unwrap();
+        assert_eq!(out.status.code(), Some(0), "{args:?}: {}", String::from_utf8_lossy(&out.stderr));
+        assert!(String::from_utf8_lossy(&out.stdout).contains("usage: effectcraft-cli"), "{args:?}");
+    }
+}
+
 #[test]
 fn errors_are_json() {
     let (code, v) = run_json(&["exec", "no.such.command", "--empty"]);

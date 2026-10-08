@@ -85,7 +85,7 @@ fn stdout_broken() -> bool {
     STDOUT_FAILED.get().is_some_and(|k| *k != std::io::ErrorKind::BrokenPipe)
 }
 
-const USAGE: &str = "usage: effectcraft-cli <info|commands|exec|run|props|get|set|render-frame|render|script|mcp> [args] [--json]
+const USAGE: &str = "usage: effectcraft-cli <info|commands|exec|run|props|get|set|render-frame|render|script|mcp|help> [args] [--json]
   info                                     project + engine summary
   commands [--filter TEXT] [--enabled]     list engine commands
   exec <command-id> [--params JSON]        run one engine command (exec --list: list them, as `commands`)
@@ -252,7 +252,7 @@ fn main() {
         say!("effectcraft-cli {}", env!("CARGO_PKG_VERSION"));
         return;
     }
-    if raw.is_empty() || raw.iter().any(|a| a == "-h" || a == "--help") {
+    if raw.is_empty() || raw.first().is_some_and(|a| a == "help") || raw.iter().any(|a| a == "-h" || a == "--help") {
         say!("{USAGE}");
         std::process::exit(if raw.is_empty() { 2 } else { 0 });
     }
