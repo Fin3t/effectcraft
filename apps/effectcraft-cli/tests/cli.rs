@@ -144,6 +144,28 @@ fn help_prints_usage() {
     }
 }
 
+/// `run` uses earlier results like `engine.batch` and FilmCraft's `run`: `"$2.layer"` is step 2's
+/// `layer`, so a script applies an effect to the layer it just made without knowing its id.
+#[test]
+fn run_refers_to_earlier_results() {
+    let v = ok_json(&[
+        "run",
+        "comp.new",
+        r#"{"name":"R","width":64,"height":36}"#,
+        "layer.newSolid",
+        r#"{"name":"FX"}"#,
+        "effect.apply",
+        r#"{"effect":"Gaussian Blur","layers":["$2.layer"]}"#,
+        "layer.rename",
+        r#"{"layer":"$2.layer","name":"Blurred"}"#,
+        "--empty",
+    ]);
+    assert_eq!(v.as_array().map(Vec::len), Some(4), "{v}");
+    let (code, v) = run_json(&["run", "comp.new", r#"{"name":"R"}"#, "layer.rename", r#"{"layer":"$5.layer","name":"x"}"#, "--empty"]);
+    assert_eq!(code, 1, "{v}");
+    assert!(v["error"].as_str().unwrap().contains("refers to step 5"), "{v}");
+}
+
 #[test]
 fn errors_are_json() {
     let (code, v) = run_json(&["exec", "no.such.command", "--empty"]);

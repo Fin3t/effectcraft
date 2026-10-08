@@ -88,7 +88,8 @@ const USAGE: &str = "usage: effectcraft-cli <info|commands|exec|run|props|get|se
   info                                     project + engine summary
   commands [--filter TEXT] [--enabled]     list engine commands
   exec <command-id> [--params JSON]        run one engine command (exec --list: list them, as `commands`)
-  run <id> <json> [<id> <json> ...]        run several commands in order
+  run <id> <json> [<id> <json> ...]        run several commands in order; a string param \"$N\" or
+                                           \"$N.key\" is step N's result (e.g. {\"layers\":[\"$2.layer\"]})
   props <comp> <layer> [--flat] [--time S] a layer's property tree with paths
   get <comp> <layer> <path> [--time S]     read a property
   set <comp> <layer> <path> <value> [--time S] [--expression E]
@@ -483,6 +484,8 @@ fn run(cmd: &str, args: &Args, json_out: bool) -> Result<(), Failure> {
             let pairs = args.pos.clone();
             let mut b = backend(args, true)?;
             let mut results = vec![];
+            // what each step returned, for `"$N.key"` references (as in engine.batch)
+            let mut values: Vec<Value> = vec![];
             let mut i = 0;
             while i < pairs.len() {
                 let id = &pairs[i];
@@ -494,7 +497,9 @@ fn run(cmd: &str, args: &Args, json_out: bool) -> Result<(), Failure> {
                     None => json!({}),
                 };
                 i += 1;
+                let params = effectcraft_engine::commands::substitute(&params, &values).map_err(|e| Failure::Error(format!("{id}: {e}")))?;
                 let r = b.exec(id, params).map_err(|e| Failure::Error(format!("{id}: {e}")))?;
+                values.push(r.clone());
                 if !json_out {
                     emit(&r, false);
                 }
