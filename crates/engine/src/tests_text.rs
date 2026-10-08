@@ -186,3 +186,28 @@ fn menus_have_text_animation_entries() {
     assert!(s.is_enabled("layer.enablePerChar3D"));
     assert!(!s.is_enabled("layer.addTextSelector"), "needs an animator");
 }
+
+/// T2 / #227: Turbulent Displace on a text layer (Amount 150) left the glyphs in place: the
+/// edge-pinning rectangle started at the layer's origin, the baseline, so everything above it
+/// counted as outside the layer and was pinned; only descenders moved. Every displacement kind
+/// the T2 run tried (Turbulent, Vertical, Horizontal, Cross) must move the glyphs themselves.
+#[test]
+fn turbulent_displace_moves_a_text_layer_above_its_baseline() {
+    let mut s = Session::default();
+    s.execute("comp.new", json!({"name": "T", "width": 800, "height": 400, "duration": 1, "background": "#000000"})).unwrap();
+    let t = s.execute("layer.newText", json!({"text": "HORDEFALL", "size": 150, "fill": "#ffffff"})).unwrap()["layer"].as_u64().unwrap();
+    let cid = s.active_comp_id().unwrap();
+    let plain = s.render(cid, effectcraft_time::Tick::ZERO, Default::default());
+    // the glyphs sit above the baseline (the layer's origin at the comp centre, y = 200)
+    let above = |img: &effectcraft_raster::Image| -> Vec<f32> { (0..190 * 800).map(|i| img.data[i][3]).collect() };
+    let ink: f32 = above(&plain).iter().sum();
+    assert!(ink > 5000.0, "the text renders above its baseline ({ink})");
+    s.execute("effect.apply", json!({"layer": t, "effect": "Turbulent Displace"})).unwrap();
+    s.execute("prop.set", json!({"layer": t, "path": "effects/#1/amount", "value": 150})).unwrap();
+    for kind in [0, 6, 7, 8] {
+        s.execute("prop.set", json!({"layer": t, "path": "effects/#1/displacement", "value": kind})).unwrap();
+        let warped = s.render(cid, effectcraft_time::Tick::ZERO, Default::default());
+        let moved: f32 = above(&plain).iter().zip(above(&warped)).map(|(a, b)| (a - b).abs()).sum();
+        assert!(moved > 0.1 * ink, "kind {kind}: the glyphs moved by {moved} of {ink} alpha");
+    }
+}
