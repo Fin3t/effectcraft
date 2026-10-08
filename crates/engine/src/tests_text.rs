@@ -186,3 +186,25 @@ fn menus_have_text_animation_entries() {
     assert!(s.is_enabled("layer.enablePerChar3D"));
     assert!(!s.is_enabled("layer.addTextSelector"), "needs an animator");
 }
+
+/// Turbulent Displace on a text layer is not cut at the glyphs' raster box: a text layer's bounds
+/// are comp-sized (as in After Effects), so with Resize Layer off the displaced glyphs still reach
+/// below the baseline and render exactly as with Resize Layer on, as long as they stay in the comp.
+#[test]
+fn turbulent_displace_on_text_is_not_cut_at_the_glyph_box() {
+    let mut s = Session::default();
+    s.execute("comp.new", json!({"name": "T", "width": 800, "height": 400, "duration": 1, "background": "#000000"})).unwrap();
+    let t = s.execute("layer.newText", json!({"text": "HORDEFALL", "size": 150, "fill": "#ffffff"})).unwrap()["layer"].as_u64().unwrap();
+    let cid = s.active_comp_id().unwrap();
+    s.execute("effect.apply", json!({"layer": t, "effect": "Turbulent Displace"})).unwrap();
+    s.execute("prop.set", json!({"layer": t, "path": "effects/#1/amount", "value": 50})).unwrap();
+    let render = |s: &Session| s.render(cid, effectcraft_time::Tick::ZERO, Default::default());
+    let cut = render(&s);
+    s.execute("prop.set", json!({"layer": t, "path": "effects/#1/resizeLayer", "value": true})).unwrap();
+    let grown = render(&s);
+    // the glyphs (no descenders) end at the baseline, y = 200: below it only displaced ink
+    let below = |img: &effectcraft_raster::Image| -> f32 { (215 * 800..300 * 800).map(|i| img.data[i][3]).sum() };
+    assert!(below(&grown) > 100.0, "the displacement reaches below the baseline ({})", below(&grown));
+    let diff = cut.data.iter().zip(&grown.data).map(|(a, b)| (a[3] - b[3]).abs()).fold(0.0f32, f32::max);
+    assert!(diff < 1e-3, "Resize Layer changes nothing inside the comp (max alpha diff {diff}); below the baseline: {} vs {}", below(&cut), below(&grown));
+}
