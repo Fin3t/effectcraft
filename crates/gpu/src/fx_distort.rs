@@ -175,7 +175,8 @@ fn turbulent(e: &mut Enc, ctx: &EffectCtx, mut b: GBuf) -> Option<GBuf> {
     }
     let kind = ctx.params.e("displacement");
     let size = (ctx.params.f("size") * b.scale).max(1.0);
-    if ctx.params.b("resizeLayer") && !ctx.adjustment {
+    // as the CPU path: text and shape layers grow their content buffer within their comp-sized bounds
+    if (ctx.params.b("resizeLayer") || ctx.env.bounds_origin != [0.0; 2]) && !ctx.adjustment {
         b.pad(e, amount.abs().ceil() as u32 + 1)?;
     }
     let off = b.to_px(ctx.params.v2("offset"));

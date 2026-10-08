@@ -91,7 +91,10 @@ fn turbulent_displace(ctx: &EffectCtx, mut b: Buf) -> Buf {
     // TURBULENT_KINDS order: the "Smoother" variants (3, 4, 5) use a gentler octave falloff.
     let kind = ctx.params.e("displacement");
     let size = (ctx.params.f("size") * b.scale).max(1.0);
-    if ctx.params.b("resizeLayer") && !ctx.adjustment {
+    // Text and shape layers have comp-sized bounds around a buffer that only holds their content
+    // (EffectEnv::bounds_origin is not (0, 0)): displaced pixels may leave that buffer without
+    // Resize Layer, or they are cut off at the glyphs' box.
+    if (ctx.params.b("resizeLayer") || ctx.env.bounds_origin != [0.0; 2]) && !ctx.adjustment {
         b.pad(amount.abs().ceil() as u32 + 1);
     }
     let off = b.to_px(ctx.params.v2("offset"));
