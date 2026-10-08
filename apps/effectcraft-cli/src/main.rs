@@ -602,7 +602,10 @@ fn render(args: &Args, json_out: bool) -> Result<(), Failure> {
     let err = |e: effectcraft_engine::EngineError| Failure::Error(e.to_string());
     if !args.flag("--queue") {
         let Some(out) = args.opt("--out") else { return usage_err("render: --out FILE is required (or --queue)") };
-        let mut p = json!({"output": out});
+        // A relative path is relative to the working directory, as for every CLI path (the
+        // render queue on its own resolves it against the project's folder).
+        let abs = std::path::absolute(out).map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|_| out.to_string());
+        let mut p = json!({"output": abs});
         if let Some(c) = args.opt("--comp") {
             p["comp"] = json!(c);
         }

@@ -115,6 +115,25 @@ fn render_frame_writes_png() {
     assert!((v["time"].as_f64().unwrap() - 0.5).abs() < 0.02, "{v}");
 }
 
+/// `render --out` with a relative path writes under the working directory, as every CLI does
+/// (T2: `--out effectcraft/title.mov` from the parent folder landed in
+/// `effectcraft/effectcraft/title.mov`, resolved against the project's folder).
+#[test]
+fn render_out_is_relative_to_the_working_directory() {
+    let root = tmp("rel-out");
+    let (proj_dir, cwd) = (root.join("proj"), root.join("cwd"));
+    std::fs::create_dir_all(&proj_dir).unwrap();
+    std::fs::create_dir_all(&cwd).unwrap();
+    let proj = proj_dir.join("t.ecproj");
+    let p = proj.to_str().unwrap();
+    ok_json(&["exec", "comp.new", r#"{"name":"T","width":64,"height":36,"frameRate":10,"duration":0.3}"#, "--empty", "--save-as", p]);
+    let out = bin().current_dir(&cwd).args(["render", p, "--comp", "T", "--out", "sub/a.mov", "--format", "prores"]).output().unwrap();
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    assert!(cwd.join("sub/a.mov").exists(), "written under the working directory");
+    assert!(!proj_dir.join("sub/a.mov").exists(), "not under the project's folder");
+    let _ = std::fs::remove_dir_all(&root);
+}
+
 #[test]
 fn errors_are_json() {
     let (code, v) = run_json(&["exec", "no.such.command", "--empty"]);
