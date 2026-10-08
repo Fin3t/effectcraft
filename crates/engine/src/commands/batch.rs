@@ -22,7 +22,7 @@ fn reference(s: &str, results: &[Value]) -> Option<Result<Value>> {
         return None;
     }
     let Some(mut v) = n.checked_sub(1).and_then(|i| results.get(i)) else {
-        return Some(Err(bad("engine.batch", format!("`{s}` refers to step {n}, but only {} step(s) ran before", results.len()))));
+        return Some(Err(EngineError::Other(format!("`{s}` refers to step {n}, but only {} step(s) ran before", results.len()))));
     };
     for p in &path {
         let next = match (v, p.parse::<usize>()) {
@@ -32,14 +32,15 @@ fn reference(s: &str, results: &[Value]) -> Option<Result<Value>> {
         };
         match next {
             Some(x) => v = x,
-            None => return Some(Err(bad("engine.batch", format!("`{s}`: step {n} returned {v}, which has no `{p}`")))),
+            None => return Some(Err(EngineError::Other(format!("`{s}`: step {n} returned {v}, which has no `{p}`")))),
         }
     }
     Some(Ok(v.clone()))
 }
 
-/// Replace every `$N…` string in `v` (recursively) with the referenced result.
-fn substitute(v: &Value, results: &[Value]) -> Result<Value> {
+/// Replace every `$N…` string in `v` (recursively) with the referenced result. Also used by
+/// `effectcraft-cli run`, so scripts and batches share one notation.
+pub fn substitute(v: &Value, results: &[Value]) -> Result<Value> {
     Ok(match v {
         Value::String(s) => match reference(s, results) {
             Some(r) => r?,
