@@ -9,6 +9,7 @@ mod animation;
 pub(crate) mod app_more;
 mod autotrace;
 mod batch;
+pub use batch::substitute;
 mod camera_cmds;
 mod comp;
 pub(crate) mod comp_more;
