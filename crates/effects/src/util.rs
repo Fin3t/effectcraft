@@ -433,6 +433,15 @@ pub fn layer_rect_at(ctx: &crate::EffectCtx, offset: [f64; 2], scale: f64) -> (f
     (offset[0], offset[1], ctx.layer_size[0] * scale, ctx.layer_size[1] * scale)
 }
 
+/// Whether the layer bounds ([`layer_rect_at`]) reach more than a pixel past a `w` × `h` buffer
+/// with `offset` and `scale`: text and shape layers, whose comp-sized bounds surround a buffer
+/// that only holds their content. Footage and solids fill their bounds (the pixel absorbs the
+/// rounding at reduced resolution).
+pub fn bounds_exceed_buffer(ctx: &crate::EffectCtx, offset: [f64; 2], scale: f64, w: u32, h: u32) -> bool {
+    let (x0, y0, lw, lh) = layer_rect_at(ctx, offset, scale);
+    x0 < -1.0 || y0 < -1.0 || x0 + lw > w as f64 + 1.0 || y0 + lh > h as f64 + 1.0
+}
+
 /// Resample another layer (a layer parameter) into `b`'s pixel grid. With `stretch` the other
 /// layer is scaled to this layer's size ("Stretch to Fit"); otherwise it is centred.
 pub fn fit_layer(ctx: &crate::EffectCtx, b: &crate::Buf, other: &crate::LayerPixels, stretch: bool) -> Image {

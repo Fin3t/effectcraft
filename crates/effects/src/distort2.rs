@@ -20,7 +20,7 @@ use effectcraft_raster::{Image, Px};
 use rayon::prelude::*;
 
 use crate::generate::value_noise;
-use crate::util::{SRC_NAMES, Src, fit_layer, layer_rect, lerp4, map_xy, pick, premul, remap, smoothstep, src_at, unpremul};
+use crate::util::{SRC_NAMES, Src, bounds_exceed_buffer, fit_layer, layer_rect, lerp4, map_xy, pick, premul, remap, smoothstep, src_at, unpremul};
 use crate::{Buf, EffectCtx, EffectSpec, col, num, p, popup, slider};
 
 fn spec(id: &'static str, name: &'static str, params: Vec<crate::ParamSpec>, render: crate::RenderFn) -> EffectSpec {
@@ -91,7 +91,10 @@ fn turbulent_displace(ctx: &EffectCtx, mut b: Buf) -> Buf {
     // TURBULENT_KINDS order: the "Smoother" variants (3, 4, 5) use a gentler octave falloff.
     let kind = ctx.params.e("displacement");
     let size = (ctx.params.f("size") * b.scale).max(1.0);
-    if ctx.params.b("resizeLayer") && !ctx.adjustment {
+    // Text and shape layers have comp-sized bounds around a buffer that only holds their content:
+    // displaced pixels may leave that buffer without Resize Layer, or they are cut off at the
+    // glyphs' box.
+    if (ctx.params.b("resizeLayer") || bounds_exceed_buffer(ctx, b.offset, b.scale, b.img.width, b.img.height)) && !ctx.adjustment {
         b.pad(amount.abs().ceil() as u32 + 1);
     }
     let off = b.to_px(ctx.params.v2("offset"));
